@@ -51,16 +51,26 @@ func main() {
     cards := NewCards()
     var players [numOfPlayers]Player
     for i := 0; i < numOfPlayers; i++ {
+        fmt.Println("Creating player", i)
         players[i] = newPlayer(&cards, i+1)
     }
 
     // wait for players to connect...
-    initPlayers(numOfPlayers, players)
+    conns := initPlayers(numOfPlayers, players)
 
-
+    var game Game
+    game.cards = cards
+    for {
+        sendGame()
+        waitForMove()
+        Move()
+    }
 }
 
-func initPlayers(numOfPlayers int, players []Player) {
+
+func initPlayers(numOfPlayers int, players []Player) [](net.Conn) {
+    var conns [numOfPlayers](net.Conn)
+    conns := make([](net.Conn), numOfPlayers)
     for i := 0; i < numOfPlayers; i++ {
         ln, err := net.Listen("tcp", ":8080")
         if err != nil {
@@ -71,12 +81,11 @@ func initPlayers(numOfPlayers int, players []Player) {
         if err != nil {
             panic(err)
         }
+        conns[i] = conn
 
         conn.Write(json.Marshall(players[i+1]))
-        
-
     }
-
+    return conns
 }
 
 
