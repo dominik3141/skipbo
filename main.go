@@ -71,8 +71,19 @@ func main() {
 }
 
 func checkAndExecMove(game *Game, players []Player, move Move) {
-       
-    
+    player := players[game.Turn]
+    switch move.kindOfMove {
+    case 1: // Hand -> Table
+            heapDst = game.Table[move.Dst]
+            heapSrc = player.Hand[move.Src]
+            heapDst[len(heapDst)] = heapSrc[len(heapSrc)-1]
+            player.Hand
+            ...
+    case 2: // Stack -> Table
+            ...
+    case 3: // Hand -> Storage
+            ...
+    }
 }
 
 func checkIfEnd(game *Game, players []Player) Bool {
