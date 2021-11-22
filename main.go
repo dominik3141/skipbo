@@ -60,11 +60,32 @@ func main() {
 
     game := newGame(players, cards)
     for {
-        sendGame(&game)
-        move := waitForMove(game.Turn)
+        sendGame(&game, players, conns)
+        move := waitForMove(conns[game.turn])
         CheckAndExecMove(&game, move)
     }
 }
+
+func CheckAndExecMove(game *Game, move Move) {
+
+    
+}
+
+func waitForMove(conn net.Conn) Move {
+    var move Move
+    buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
+    conn.Read(buffer)
+    json.Unmarshall(buffer, move)
+    return move
+}
+
+func sendGame(game *Game, players []Player, conns [](net.Conn)) {
+        for i, conn := range conns {
+                conn.Write(json.Marshall(game)
+                conn.Write(json.Marshall(players[i+1])
+        }
+}
+
 
 func newGame(players *([]Player), cards Cards) Game {
     var game Game
