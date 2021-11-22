@@ -9,8 +9,12 @@ import (
 
 type table = [4]([]int)
 type storage = [4]([]int)
-type stack = []int
 type hand = []int
+
+type Stack struct {
+    cards       []int
+    counter     int
+}
 
 type Cards struct {
     cards       []int
@@ -38,13 +42,16 @@ type Move struct {
 }
 
 
-func main() {
-    numOfPlayers := 2
+const numOfPlayers = 2
+const numOfCards   = 20
 
+
+func main() {
     // initialize the game
+    cards := NewCards()
     var players [numOfPlayers]Player
     for i := 0; i < numOfPlayers; i++ {
-        players[i] = newPlayer()
+        players[i] = newPlayer(&cards, i+1)
     }
 
     // wait for players to connect...
@@ -65,15 +72,41 @@ func initPlayers(numOfPlayers int, players []Player) {
             panic(err)
         }
 
-        conn.Write(json.Marshall(players[i]))
+        conn.Write(json.Marshall(players[i+1]))
         
 
     }
 
 }
 
-func getCards(num int, cards Cards) []int {
-    // get 'num' random cards from Game.cards
+
+
+
+//
+// helper functions:
+//
+
+
+func newPlayer(cards *Cards, id int) Player {
+    hand := getCards(5,cards)
+    stack := Stack { cards: getCards(numOfCards, cards)
+                     counter: 0 }
+
+    player := Player {
+                    stack: stack
+                    hand: hand
+                    id: id
+            }
+    return player
+}
+
+func getCards(num int, cards *Cards) []int {
+        ret := make([]int, num)
+        for i:= 0; i<num; i++ {
+            ret[i] = cards.cards[cards.counter + i]
+        }
+        cards.counter += num
+        return ret
 }
 
 func NewCards() []int {
