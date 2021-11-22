@@ -61,14 +61,25 @@ func main() {
     game := newGame(players, cards)
     for {
         sendGame(&game, players, conns)
-        move := waitForMove(conns[game.turn])
-        CheckAndExecMove(&game, move)
+        move := waitForMove(conns[game.Turn])
+        checkAndExecMove(&game, players, move)
+        exit := checkIfEnd(&game, players)
+        if exit {
+            return
+        }
     }
 }
 
-func CheckAndExecMove(game *Game, move Move) {
-
+func checkAndExecMove(game *Game, players []Player, move Move) {
+       
     
+}
+
+func checkIfEnd(game *Game, players []Player) Bool {
+    if (players[game.Turn]).stack.counter == numOfCards {
+        return true
+    }
+    return false
 }
 
 func waitForMove(conn net.Conn) Move {
@@ -80,6 +91,12 @@ func waitForMove(conn net.Conn) Move {
 }
 
 func sendGame(game *Game, players []Player, conns [](net.Conn)) {
+        turn = (game.Turn + 1) % (numOfPlayers+1)
+        if turn == 0 {
+            game.Turn = 1
+        } else {
+            game.Turn = turn
+        }
         for i, conn := range conns {
                 conn.Write(json.Marshall(game)
                 conn.Write(json.Marshall(players[i+1])
