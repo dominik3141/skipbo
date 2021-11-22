@@ -49,7 +49,7 @@ const numOfCards   = 20
 func main() {
     // initialize the game
     cards := NewCards()
-    var players [numOfPlayers]Player
+    players := make([]Player, numOfPlayers)
     for i := 0; i < numOfPlayers; i++ {
         fmt.Println("Creating player", i)
         players[i] = newPlayer(&cards, i+1)
@@ -58,15 +58,33 @@ func main() {
     // wait for players to connect...
     conns := initPlayers(numOfPlayers, players)
 
-    var game Game
-    game.cards = cards
+    game := newGame(players, cards)
     for {
-        sendGame()
-        waitForMove()
-        Move()
+        sendGame(&game)
+        move := waitForMove(game.Turn)
+        CheckAndExecMove(&game, move)
     }
 }
 
+func newGame(players *([]Player), cards Cards) Game {
+    var game Game
+    
+    game.cards = cards
+    
+    game.Turn = 1
+    
+    game.Table = [ make(([]int), 0, 12), make(([]int), 0, 12), make(([]int), 0, 12), make(([]int), 0, 12) ] 
+
+    var storage []int
+    for i:=0;i<numOfPlayers;i++ { storage = append(storage, make([]int), 0, 30) }
+    game.Storage = storage   
+
+    visStack := make([]int, numOfPlayers)
+    for i:=0;i<numOfPlayers;i++ { pStack := (players[i+1]).stack; visStack[i+1] = pStack.cards[pStack.counter]  }
+    game.VisStack = visStack
+
+    return game
+}
 
 func initPlayers(numOfPlayers int, players []Player) [](net.Conn) {
     var conns [numOfPlayers](net.Conn)
