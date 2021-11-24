@@ -47,13 +47,16 @@ const numOfCards = 20
 func main() {
 	// initialize the game
 	cards := NewCards()
-	players := make([]Player, numOfPlayers)
-	for i := 0; i < numOfPlayers; i++ {
+	fmt.Printf("cards: %v\n", cards)
+	players := make([]Player, numOfPlayers+1)
+	for i := 1; i < numOfPlayers+1; i++ {
 		fmt.Println("Creating player", i)
-		players[i] = newPlayer(&cards, i+1)
+		players[i] = newPlayer(&cards, i)
 	}
+	fmt.Printf("players: %v\n", players)
 
 	// wait for players to connect...
+	fmt.Println("Players created. Now we are waiting for them to connect.")
 	conns := initPlayers(players)
 
 	game := newGame(players, cards)
@@ -98,7 +101,7 @@ func waitForMove(conn net.Conn) Move {
 	var move Move
 	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
 	conn.Read(buffer)
-	json.Unmarshal(buffer, move)
+	json.Unmarshal(buffer, &move)
 	return move
 }
 
@@ -147,12 +150,11 @@ func newGame(players []Player, cards Cards) Game {
 func initPlayers(players []Player) [numOfPlayers](net.Conn) {
 	var conns [numOfPlayers](net.Conn)
 	//conns := make([](net.Conn), numOfPlayers)
+	ln, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		panic(err)
+	}
 	for i := 0; i < numOfPlayers; i++ {
-		ln, err := net.Listen("tcp", ":8080")
-		if err != nil {
-			panic(err)
-		}
-
 		conn, err := ln.Accept()
 		if err != nil {
 			panic(err)
@@ -182,8 +184,9 @@ func newPlayer(cards *(Cards), id int) Player {
 	return player
 }
 
-func getCards(num int, cards *(Cards)) []int {
+func getCards(num int, cardsP *(Cards)) []int {
 	ret := make([]int, num)
+	cards := *cardsP
 	for i := 0; i < num; i++ {
 		ret[i] = cards.cards[cards.counter+i]
 	}
@@ -200,7 +203,7 @@ func NewCards() Cards {
 	}
 
 	newSkipboSorted := func() []int {
-		array := make([]int, 162)
+		array := make([]int, 0, 162)
 		for i := 0; i < 12; i++ {
 			array = constAppend(i+1, 12, array)
 		}
@@ -210,14 +213,15 @@ func NewCards() Cards {
 
 	cards := newSkipboSorted()
 	var rCards Cards
-	rCards.cards = make([]int, 0, 162)
+	rCards.cards = make([]int, 162)
 	rand.Seed(2606) // not a correct random seed yet!
 	for i := 0; i < 162; i++ {
 		k := rand.Intn(162)
 		if cards[k] != 0 {
 			rCards.cards[i] = cards[k]
 			cards[k] = 0
-			i++
+		} else {
+			i = i - 1
 		}
 	}
 	return rCards
