@@ -1,10 +1,10 @@
 package main
 
 import (
-    "fmt"
-    "net"
-    "encoding/json"
-    "math/rand"
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"net"
 )
 
 type table = [4]([]int)
@@ -12,210 +12,213 @@ type storage = [4]([]int)
 type hand = []int
 
 type Stack struct {
-    cards       []int
-    counter     int
+	cards   []int
+	counter int
 }
 
 type Cards struct {
-    cards       []int
-    counter     int
+	cards   []int
+	counter int
 }
 
 type Game struct {
-    Table       table
-    Storage     []storage
-    VisStack    []int
-    cards       cards
-    Turn        uint
+	Table    table
+	Storage  storage
+	VisStack []int
+	cards    Cards
+	Turn     uint
 }
 
 type Player struct {
-    ID          uint
-    Hand        hand
-    stack       stack
+	ID    int
+	Hand  hand
+	stack Stack
 }
 
 type Move struct {
-    kindOfMove  uint    // i.e. Hand -> Table
-    src         uint    // i.e. which card from Hand
-    dst         uint    // i.e. which heap to lay down on
+	KindOfMove uint // i.e. Hand -> Table
+	Src        uint // i.e. which card from Hand
+	Dst        uint // i.e. which heap to lay down on
 }
 
-
 const numOfPlayers = 2
-const numOfCards   = 20
-
+const numOfCards = 20
 
 func main() {
-    // initialize the game
-    cards := NewCards()
-    players := make([]Player, numOfPlayers)
-    for i := 0; i < numOfPlayers; i++ {
-        fmt.Println("Creating player", i)
-        players[i] = newPlayer(&cards, i+1)
-    }
+	// initialize the game
+	cards := NewCards()
+	players := make([]Player, numOfPlayers)
+	for i := 0; i < numOfPlayers; i++ {
+		fmt.Println("Creating player", i)
+		players[i] = newPlayer(&cards, i+1)
+	}
 
-    // wait for players to connect...
-    conns := initPlayers(numOfPlayers, players)
+	// wait for players to connect...
+	conns := initPlayers(players)
 
-    game := newGame(players, cards)
-    for {
-        sendGame(&game, players, conns)
-        move := waitForMove(conns[game.Turn])
-        checkAndExecMove(&game, players, move)
-        exit := checkIfEnd(&game, players)
-        if exit {
-            return
-        }
-    }
+	game := newGame(players, cards)
+	for {
+		sendGame(&game, players, conns)
+		move := waitForMove(conns[game.Turn])
+		checkAndExecMove(&game, players, move)
+		exit := checkIfEnd(&game, players)
+		if exit {
+			return
+		}
+	}
 }
 
 func checkAndExecMove(game *Game, players []Player, move Move) {
-    player := players[game.Turn]
-    switch move.kindOfMove {
-    case 1: // Hand -> Table
-            heapDst = game.Table[move.Dst]
-            heapSrc = player.Hand[move.Src]
-            heapDst[len(heapDst)] = heapSrc[len(heapSrc)-1]
-            player.Hand
-            ...
-    case 2: // Stack -> Table
-            ...
-    case 3: // Hand -> Storage
-            ...
-    }
+	player := players[game.Turn]
+	switch move.KindOfMove {
+	case 1: // Hand -> Table
+		heapDst := game.Table[move.Dst]
+		heapSrc := player.Hand[move.Src]
+		heapDst[len(heapDst)] = heapSrc
+		// player.Hand
+		// ...
+		fmt.Println("case 1")
+	case 2: // Stack -> Table
+		// ...
+		fmt.Println("case 2")
+	case 3: // Hand -> Storage
+		// ...
+		fmt.Println("case 3")
+	}
 }
 
-func checkIfEnd(game *Game, players []Player) Bool {
-    if (players[game.Turn]).stack.counter == numOfCards {
-        return true
-    }
-    return false
+func checkIfEnd(game *Game, players []Player) bool {
+	if (players[game.Turn]).stack.counter == numOfCards {
+		return true
+	}
+	return false
 }
 
 func waitForMove(conn net.Conn) Move {
-    var move Move
-    buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
-    conn.Read(buffer)
-    json.Unmarshall(buffer, move)
-    return move
+	var move Move
+	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
+	conn.Read(buffer)
+	json.Unmarshal(buffer, move)
+	return move
 }
 
-func sendGame(game *Game, players []Player, conns [](net.Conn)) {
-        turn = (game.Turn + 1) % (numOfPlayers+1)
-        if turn == 0 {
-            game.Turn = 1
-        } else {
-            game.Turn = turn
-        }
-        for i, conn := range conns {
-                conn.Write(json.Marshall(game)
-                conn.Write(json.Marshall(players[i+1])
-        }
+func sendGame(game *Game, players []Player, conns [numOfPlayers](net.Conn)) {
+	turn := (game.Turn + 1) % (numOfPlayers + 1)
+	if turn == 0 {
+		game.Turn = 1
+	} else {
+		game.Turn = turn
+	}
+	for i, conn := range conns {
+		strGame, _ := json.Marshal(game)
+		strPlayer, _ := json.Marshal(players[i+1])
+		conn.Write(strGame)
+		conn.Write(strPlayer)
+	}
 }
 
+func newGame(players []Player, cards Cards) Game {
+	var game Game
 
-func newGame(players *([]Player), cards Cards) Game {
-    var game Game
-    
-    game.cards = cards
-    
-    game.Turn = 1
-    
-    game.Table = [ make(([]int), 0, 12), make(([]int), 0, 12), make(([]int), 0, 12), make(([]int), 0, 12) ] 
+	game.cards = cards
 
-    var storage []int
-    for i:=0;i<numOfPlayers;i++ { storage = append(storage, make([]int), 0, 30) }
-    game.Storage = storage   
+	game.Turn = 1
 
-    visStack := make([]int, numOfPlayers)
-    for i:=0;i<numOfPlayers;i++ { pStack := (players[i+1]).stack; visStack[i+1] = pStack.cards[pStack.counter]  }
-    game.VisStack = visStack
+	for i := 0; i < 4; i++ {
+		game.Table[i] = make([]int, 0, 12)
+	}
 
-    return game
+	var storage storage
+	for i := 0; i < numOfPlayers; i++ {
+		storage[i] = make([]int, 0, 30)
+	}
+	game.Storage = storage
+
+	visStack := make([]int, numOfPlayers)
+	for i := 0; i < numOfPlayers; i++ {
+		pStack := (players[i+1]).stack
+		visStack[i+1] = pStack.cards[pStack.counter]
+	}
+	game.VisStack = visStack
+
+	return game
 }
 
-func initPlayers(numOfPlayers int, players []Player) [](net.Conn) {
-    var conns [numOfPlayers](net.Conn)
-    conns := make([](net.Conn), numOfPlayers)
-    for i := 0; i < numOfPlayers; i++ {
-        ln, err := net.Listen("tcp", ":8080")
-        if err != nil {
-            panic(err)
-        }
-        
-        conn, err := ln.Accept()
-        if err != nil {
-            panic(err)
-        }
-        conns[i] = conn
+func initPlayers(players []Player) [numOfPlayers](net.Conn) {
+	var conns [numOfPlayers](net.Conn)
+	//conns := make([](net.Conn), numOfPlayers)
+	for i := 0; i < numOfPlayers; i++ {
+		ln, err := net.Listen("tcp", ":8080")
+		if err != nil {
+			panic(err)
+		}
 
-        conn.Write(json.Marshall(players[i+1]))
-    }
-    return conns
+		conn, err := ln.Accept()
+		if err != nil {
+			panic(err)
+		}
+		conns[i] = conn
+
+		strPlayer, _ := json.Marshal(players[i+1])
+		conn.Write(strPlayer)
+	}
+	return conns
 }
-
-
-
 
 //
 // helper functions:
 //
 
+func newPlayer(cards *(Cards), id int) Player {
+	hand := getCards(5, cards)
+	stack := Stack{cards: getCards(numOfCards, cards),
+		counter: 0}
 
-func newPlayer(cards *Cards, id int) Player {
-    hand := getCards(5,cards)
-    stack := Stack { cards: getCards(numOfCards, cards)
-                     counter: 0 }
-
-    player := Player {
-                    stack: stack
-                    hand: hand
-                    id: id
-            }
-    return player
+	player := Player{
+		stack: stack,
+		Hand:  hand,
+		ID:    id,
+	}
+	return player
 }
 
-func getCards(num int, cards *Cards) []int {
-        ret := make([]int, num)
-        for i:= 0; i<num; i++ {
-            ret[i] = cards.cards[cards.counter + i]
-        }
-        cards.counter += num
-        return ret
+func getCards(num int, cards *(Cards)) []int {
+	ret := make([]int, num)
+	for i := 0; i < num; i++ {
+		ret[i] = cards.cards[cards.counter+i]
+	}
+	cards.counter += num
+	return ret
 }
 
-func NewCards() []int {
-        constA := func (c int, n int) []int {
-                        array := make([]int, n)
-                        for i:=0; i<n; i++ {
-                            array[i] = c
-                        }
-                     return array
-                  }
+func NewCards() Cards {
+	constAppend := func(c int, n int, slice []int) []int {
+		for i := 0; i < n; i++ {
+			slice = append(slice, c)
+		}
+		return slice
+	}
 
-        newSkipboSorted := func () []int {
-                                array := make([]int, 160)
-                                for i:=0; i<12; i++ {
-                                    array = append(array, *constA(i+1, 12))
-                                }
-                                array = append(array, *constA(13, 16))
-                              return array
-                           }
+	newSkipboSorted := func() []int {
+		array := make([]int, 162)
+		for i := 0; i < 12; i++ {
+			array = constAppend(i+1, 12, array)
+		}
+		array = constAppend(13, 18, array)
+		return array
+	}
 
-        cards := *newSkipboSorted()
-        rCards := make([]int, 0, 160)
-        rand.Seed(2606)         // not a correct random seed yet!
-        i := 0
-        while i < 160 {
-                k := rand.Intn(160)
-                if cards[k] != 0 {
-                    rCards[i] = cards[k]
-                    cards[k] = 0
-                    i ++
-                }
-        }
-    return rCards
+	cards := newSkipboSorted()
+	var rCards Cards
+	rCards.cards = make([]int, 0, 162)
+	rand.Seed(2606) // not a correct random seed yet!
+	for i := 0; i < 162; i++ {
+		k := rand.Intn(162)
+		if cards[k] != 0 {
+			rCards.cards[i] = cards[k]
+			cards[k] = 0
+			i++
+		}
+	}
+	return rCards
 }
-
-
