@@ -23,10 +23,10 @@ type Cards struct {
 
 type Game struct {
 	Table    table
-	Storage  storage
+	Storage  []storage // one storage for each player
 	VisStack []int
 	cards    Cards
-	Turn     uint
+	Turn     int
 }
 
 type Player struct {
@@ -43,31 +43,46 @@ type Move struct {
 
 const numOfPlayers = 2
 const numOfCards = 20
+const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
 	// initialize the game
 	cards := NewCards()
 	fmt.Printf("cards: %v\n", cards)
-	players := make([]Player, numOfPlayers+1)
-	for i := 1; i < numOfPlayers+1; i++ {
-		fmt.Println("Creating player", i)
+	players := make([]Player, numOfPlayers)
+	for i := 0; i < numOfPlayers; i++ {
 		players[i] = newPlayer(&cards, i)
+		fmt.Printf("player %v: %v\n", i, players[i])
 	}
-	fmt.Printf("players: %v\n", players)
 
 	// wait for players to connect...
 	fmt.Println("Players created. Now we are waiting for them to connect.")
 	conns := initPlayers(players)
+	closeConns := func(conns [numOfPlayers]net.Conn) {
+		for _, conn := range conns {
+			conn.Close()
+		}
+	}
+	defer closeConns(conns)
 
+	// create initial game
 	game := newGame(players, cards)
-	for {
+
+	// play
+	for movNr := 0; movNr < maxMoves; movNr++ {
 		sendGame(&game, players, conns)
+
+		fmt.Printf("Waiting for move by player %v\n", game.Turn)
 		move := waitForMove(conns[game.Turn])
+		fmt.Printf("Move by player %v: %v\n", game.Turn, move)
 		checkAndExecMove(&game, players, move)
+
 		exit := checkIfEnd(&game, players)
 		if exit {
 			return
 		}
+
+		game.Turn = (game.Turn + 1) % (numOfPlayers)
 	}
 }
 
@@ -106,15 +121,9 @@ func waitForMove(conn net.Conn) Move {
 }
 
 func sendGame(game *Game, players []Player, conns [numOfPlayers](net.Conn)) {
-	turn := (game.Turn + 1) % (numOfPlayers + 1)
-	if turn == 0 {
-		game.Turn = 1
-	} else {
-		game.Turn = turn
-	}
 	for i, conn := range conns {
 		strGame, _ := json.Marshal(game)
-		strPlayer, _ := json.Marshal(players[i+1])
+		strPlayer, _ := json.Marshal(players[i])
 		conn.Write(strGame)
 		conn.Write(strPlayer)
 	}
@@ -125,31 +134,47 @@ func newGame(players []Player, cards Cards) Game {
 
 	game.cards = cards
 
-	game.Turn = 1
-
 	for i := 0; i < 4; i++ {
 		game.Table[i] = make([]int, 0, 12)
 	}
 
-	var storage storage
+	storages := make([]storage, numOfPlayers)
 	for i := 0; i < numOfPlayers; i++ {
-		storage[i] = make([]int, 0, 30)
+		var storage storage
+		for j := 0; j < 4; j++ {
+			storage[j] = make([]int, 0, 30)
+
+		}
+		storages[i] = storage
 	}
-	game.Storage = storage
+	game.Storage = storages
 
 	visStack := make([]int, numOfPlayers)
 	for i := 0; i < numOfPlayers; i++ {
-		pStack := (players[i+1]).stack
-		visStack[i+1] = pStack.cards[pStack.counter]
+		pStack := (players[i]).stack
+		visStack[i] = pStack.cards[pStack.counter]
 	}
 	game.VisStack = visStack
+
+	getTurn := func(ints []int) int {
+		var max int
+		var PlayerIdMax int
+		for PlayerId, k := range ints {
+			if k > max {
+				max = k
+				PlayerIdMax = PlayerId
+			}
+		}
+		return PlayerIdMax
+	}
+
+	game.Turn = getTurn(visStack)
 
 	return game
 }
 
 func initPlayers(players []Player) [numOfPlayers](net.Conn) {
 	var conns [numOfPlayers](net.Conn)
-	//conns := make([](net.Conn), numOfPlayers)
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		panic(err)
@@ -161,8 +186,10 @@ func initPlayers(players []Player) [numOfPlayers](net.Conn) {
 		}
 		conns[i] = conn
 
-		strPlayer, _ := json.Marshal(players[i+1])
+		strPlayer, _ := json.Marshal(players[i])
 		conn.Write(strPlayer)
+
+		fmt.Printf("Done sending private game info to player %v\n", i)
 	}
 	return conns
 }
@@ -186,11 +213,10 @@ func newPlayer(cards *(Cards), id int) Player {
 
 func getCards(num int, cardsP *(Cards)) []int {
 	ret := make([]int, num)
-	cards := *cardsP
 	for i := 0; i < num; i++ {
-		ret[i] = cards.cards[cards.counter+i]
+		ret[i] = (*cardsP).cards[(*cardsP).counter+i]
 	}
-	cards.counter += num
+	(*cardsP).counter += num
 	return ret
 }
 
