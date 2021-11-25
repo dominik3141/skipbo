@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"time"
 )
 
 type table = [4]([]int)
@@ -81,7 +82,7 @@ func main() {
 
 		fmt.Printf("Waiting for move by player %v\n", game.Turn)
 		waitForMove(conns[game.Turn], &move)
-		fmt.Printf("Move by player %v: %v\n", game.Turn, move)
+		fmt.Printf("Move nr %v by player %v: %v\n", movNr, game.Turn, move)
 		checkAndExecMove(&game, players, move)
 
 		exit := checkIfEnd(&game, players)
@@ -122,12 +123,14 @@ func checkIfEnd(game *Game, players []Player) bool {
 func waitForMove(conn net.Conn, moveP *Move) {
 	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
 	for {
+		time.Sleep(2 * time.Second)
 		n, err := conn.Read(buffer)
+		fmt.Println(n, err)
 		if err != nil && err != io.EOF {
 			panic(err)
 		}
 		if n != 0 {
-			buffer = buffer[:n] // why is this empty?
+			buffer = buffer[:n]
 
 			fmt.Printf("Buffer: %s\n", buffer)
 
@@ -148,11 +151,12 @@ func sendGameAndPlayers(game *Game, players []Player, conns [](net.Conn)) {
 		if err != nil {
 			panic(err)
 		}
+		conn.Write(strGame)
+
 		strPlayer, err := json.Marshal(players[i])
 		if err != nil {
 			panic(err)
 		}
-		conn.Write(strGame)
 		conn.Write(strPlayer)
 	}
 }

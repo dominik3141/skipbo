@@ -75,48 +75,44 @@ func MainPlayer() {
 func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 	// wait for input on conn:
 	buffer := make([]byte, 10000)
-	for i := 0; i < 2; i++ {
-		// retOnceNotEmpty := func() int {
-		// 	for {
-		// 		n, err := (*connP).Read(buffer)
-		// 		fmt.Printf("Buffer (in loop): %s\n", buffer[:n])
-		// 		if err != nil && err != io.EOF {
-		// 			panic(err)
-		// 		}
-		// 		if n > 140 {
-		// 			fmt.Println(n)
-		// 			return n
-		// 		}
-		// 	}
-		// }
 
+	// case1 := []byte("{\"Tabl")
+	// case2 := []byte("{\"ID\":")
+
+	for {
 		n, err := (*connP).Read(buffer)
 		if err != nil && err != io.EOF {
 			panic(err)
 		}
-		if n == 0 {
-			i = i - 1
-			continue
-		}
+
+		// if n == 0 {
+		// 	i = i - 1
+		// 	continue
+		// }
 		buffer = buffer[:n]
 
 		// the buffer should be non-emtpy now
 		fmt.Printf("Buffer: %s\n", buffer)
 
 		netIn := json.NewDecoder(bytes.NewReader(buffer))
-		if i == 0 {
+
+		if buffer[2] == byte(0x54) {
 			err := netIn.Decode(gameP)
 			fmt.Println(*gameP)
 			if err != nil && err != io.EOF {
 				panic(err)
 			}
 		}
-		if i == 1 {
+		if buffer[2] == byte(0x49) {
 			err = netIn.Decode(meP)
 			fmt.Println(*meP)
 			if err != nil && err != io.EOF {
 				panic(err)
 			}
+		}
+
+		if !netIn.More() {
+			return
 		}
 	}
 
@@ -194,7 +190,7 @@ func sendMove(connP *net.Conn, moveP *Move) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Wrote %v bytes to connection\n", n)
+	fmt.Printf("Wrote %v bytes to connection: %s\n", n, bMove)
 }
 
 // func checkAndExecMove(game *Game, players []Player, move Move) {
