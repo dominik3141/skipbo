@@ -60,8 +60,9 @@ func main() {
 
 	// wait for players to connect...
 	fmt.Println("Players created. Now we are waiting for them to connect.")
-	conns := initPlayers(players)
-	closeConns := func(conns [numOfPlayers]net.Conn) {
+	conns := initPlayers()
+	fmt.Printf("Connections to players established: %v\n", conns)
+	closeConns := func(conns []net.Conn) {
 		for _, conn := range conns {
 			conn.Close()
 		}
@@ -75,7 +76,8 @@ func main() {
 	var move Move
 	for movNr := 0; movNr < maxMoves; movNr++ {
 		fmt.Printf("game: %v\n", game)
-		sendGame(&game, players, conns)
+		sendGameAndPlayers(&game, players, conns)
+		fmt.Printf("Done sending game and players info to players\n")
 
 		fmt.Printf("Waiting for move by player %v\n", game.Turn)
 		waitForMove(conns[game.Turn], &move)
@@ -119,19 +121,28 @@ func checkIfEnd(game *Game, players []Player) bool {
 
 func waitForMove(conn net.Conn, moveP *Move) {
 	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
-	n, err := conn.Read(buffer)
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	buffer = buffer[:n]
+	for {
+		n, err := conn.Read(buffer)
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
+		if n != 0 {
+			buffer = buffer[:n] // why is this empty?
 
-	err = json.Unmarshal(buffer, moveP)
-	if err != nil {
-		panic(err)
+			fmt.Printf("Buffer: %s\n", buffer)
+
+			err = json.Unmarshal(buffer, moveP)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+
+			fmt.Printf("Received move: %v \n", *moveP)
+			return
+		}
 	}
 }
 
-func sendGame(game *Game, players []Player, conns [numOfPlayers](net.Conn)) {
+func sendGameAndPlayers(game *Game, players []Player, conns [](net.Conn)) {
 	for i, conn := range conns {
 		strGame, err := json.Marshal(game)
 		if err != nil {
@@ -193,24 +204,21 @@ func newGame(players []Player, cards Cards) Game {
 	return game
 }
 
-func initPlayers(players []Player) [numOfPlayers](net.Conn) {
-	var conns [numOfPlayers](net.Conn)
+func initPlayers() [](net.Conn) {
+	conns := make([](net.Conn), numOfPlayers)
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		panic(err)
 	}
+
 	for i := 0; i < numOfPlayers; i++ {
 		conn, err := ln.Accept()
 		if err != nil {
 			panic(err)
 		}
 		conns[i] = conn
-
-		strPlayer, _ := json.Marshal(players[i])
-		conn.Write(strPlayer)
-
-		fmt.Printf("Done sending private game info to player %v\n", i)
 	}
+
 	return conns
 }
 

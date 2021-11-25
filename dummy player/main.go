@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,36 +44,82 @@ type Move struct {
 	Dst        int // i.e. which heap to lay down on
 }
 
-// const numOfPlayers = 2
-// const numOfCards = 20
 const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
 	go MainPlayer()
 	MainPlayer()
-
-	// problem can be easaly solved using a jso.Decoder
 }
 
 func MainPlayer() {
-	conn := getConn()
-	defer conn.Close()
+	connP := getConn()
+	fmt.Printf("Connection to game master established: %v\n", *connP)
+	defer (*connP).Close()
 	var game Game
 	var me Player
-	getPrivateInfo(&conn, &me)
-	getGameInfo(&conn, &game)
-	fmt.Println(me, game)
+	getInfo(connP, &game, &me)
+	fmt.Printf("me: %v, game: %v\n", me, game)
 
 	for movNr := 0; movNr < maxMoves; movNr++ {
 		if game.Turn == me.ID {
 			move := buildMove(&game, &me)
-			fmt.Printf("My move %v\n", move)
-			sendMove(&conn, &move)
+			fmt.Printf("My move: %v\n", move)
+			sendMove(connP, &move)
 		}
-		getPrivateInfo(&conn, &me)
-		getGameInfo(&conn, &game)
-		fmt.Println(me, game)
+
+		getInfo(connP, &game, &me)
+		fmt.Printf("movNr: %v, me: %v, game: %v\n", movNr, me, game)
 	}
+}
+
+func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
+	// wait for input on conn:
+	buffer := make([]byte, 10000)
+	for i := 0; i < 2; i++ {
+		// retOnceNotEmpty := func() int {
+		// 	for {
+		// 		n, err := (*connP).Read(buffer)
+		// 		fmt.Printf("Buffer (in loop): %s\n", buffer[:n])
+		// 		if err != nil && err != io.EOF {
+		// 			panic(err)
+		// 		}
+		// 		if n > 140 {
+		// 			fmt.Println(n)
+		// 			return n
+		// 		}
+		// 	}
+		// }
+
+		n, err := (*connP).Read(buffer)
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
+		if n == 0 {
+			i = i - 1
+			continue
+		}
+		buffer = buffer[:n]
+
+		// the buffer should be non-emtpy now
+		fmt.Printf("Buffer: %s\n", buffer)
+
+		netIn := json.NewDecoder(bytes.NewReader(buffer))
+		if i == 0 {
+			err := netIn.Decode(gameP)
+			fmt.Println(*gameP)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+		}
+		if i == 1 {
+			err = netIn.Decode(meP)
+			fmt.Println(*meP)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+		}
+	}
+
 }
 
 func buildMove(gameP *Game, meP *Player) Move {
@@ -100,50 +147,54 @@ func buildMove(gameP *Game, meP *Player) Move {
 	return move
 }
 
-func getGameInfo(connP *net.Conn, gameP *Game) {
-	buffer := make([]byte, 1000)
-	n, err := (*connP).Read(buffer)
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	buffer = buffer[:n]
+// func getGameInfo(connP *net.Conn, gameP *Game) {
+// 	buffer := make([]byte, 1000)
+// 	n, err := (*connP).Read(buffer)
+// 	if err != nil && err != io.EOF {
+// 		panic(err)
+// 	}
+// 	buffer = buffer[:n]
 
-	err = json.Unmarshal(buffer, gameP)
-	if err != nil {
-		panic(err)
-	}
-}
+// 	err = json.Unmarshal(buffer, gameP)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
 
-func getPrivateInfo(connP *net.Conn, me *Player) {
-	buffer := make([]byte, 1000)
-	n, err := (*connP).Read(buffer)
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-	buffer = buffer[:n]
+// func getPrivateInfo(connP *net.Conn, me *Player) {
+// 	buffer := make([]byte, 1000)
+// 	n, err := (*connP).Read(buffer)
+// 	if err != nil && err != io.EOF {
+// 		panic(err)
+// 	}
+// 	buffer = buffer[:n]
 
-	fmt.Println(buffer)
-	err = json.Unmarshal(buffer, me)
-	if err != nil {
-		panic(err)
-	}
-}
+// 	fmt.Println(buffer)
+// 	err = json.Unmarshal(buffer, me)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
 
-func getConn() net.Conn {
+func getConn() *net.Conn {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connection established")
-	return conn
+	return &conn
 }
 
 func sendMove(connP *net.Conn, moveP *Move) {
-	strMove, err := json.Marshal(*moveP)
+	bMove, err := json.Marshal(*moveP)
 	if err != nil {
 		panic(err)
 	}
-	(*connP).Write(strMove)
+
+	n, err := (*connP).Write(bMove)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Wrote %v bytes to connection\n", n)
 }
 
 // func checkAndExecMove(game *Game, players []Player, move Move) {
