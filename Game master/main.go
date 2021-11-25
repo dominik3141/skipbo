@@ -100,23 +100,40 @@ func main() {
 	}
 }
 
-func checkAndExecMove(game *Game, players []Player, move Move) {
-	panic("ERROR: This function has not been implemented yet\n")
-	player := players[game.Turn]
+func checkAndExecMove(gameP *Game, players []Player, move Move) {
+	deleteFromHand := func(playerP *Player, ind int) {
+		for i := move.Src; i < 5; i++ {
+			cardsOnHand := len((*playerP).Hand)
+			if i+1 < cardsOnHand {
+				(*playerP).Hand[i] = (*playerP).Hand[i+1]
+			}
+			(*playerP).Hand = (*playerP).Hand[:cardsOnHand-1]
+		}
+	}
+	playerP := &(players[(*gameP).Turn])
 	switch move.KindOfMove {
 	case 1: // Hand -> Table
-		heapDst := game.Table[move.Dst]
-		heapSrc := player.Hand[move.Src]
-		heapDst[len(heapDst)] = heapSrc
-		// player.Hand
-		// ...
-		fmt.Println("case 1")
+		fmt.Println("checkAndExecMove: \t \t case 1")
+
+		// append card to table heap
+		heapDst := &((*gameP).Table[move.Dst])
+		heapSrcVal := (*playerP).Hand[move.Src]
+		(*heapDst)[len(*heapDst)] = heapSrcVal
+		*heapDst = append(*heapDst, heapSrcVal)
+
+		// delete card from hand
+		deleteFromHand(playerP, move.Src)
+
 	case 2: // Stack -> Table
+		fmt.Println("checkAndExecMove: \t \t case 2")
 		// ...
-		fmt.Println("case 2")
 	case 3: // Hand -> Storage
-		// ...
-		fmt.Println("case 3")
+		fmt.Println("checkAndExecMove: \t \t case 3")
+		storageDstP := &((*gameP).Storage[(*playerP).ID][move.Dst])
+		HandSrcP := &((*playerP).Hand[move.Src])
+		*storageDstP = append(*storageDstP, *HandSrcP)
+
+		deleteFromHand(playerP, move.Src)
 	}
 }
 
@@ -128,7 +145,6 @@ func checkIfEnd(game *Game, players []Player) bool {
 }
 
 func waitForMove(conn net.Conn, moveP *Move) {
-	// buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
 	buffer := make([]byte, 1000) // this buffer could probably be much smaller
 	for {
 		time.Sleep(2 * time.Second)
