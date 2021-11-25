@@ -70,11 +70,6 @@ func main() {
 	}
 	defer closeConns(conns)
 
-	// assign IDs to each connection
-	// for id, conn := range conns {
-	// 	conn.Write{}
-	// }
-
 	// create initial game
 	game := newGame(players, cards)
 
@@ -90,6 +85,9 @@ func main() {
 		fmt.Printf("Move nr %v by player %v: %v\n", movNr, game.Turn, move)
 		checkAndExecMove(&game, players, move)
 
+		// refill hand cards and check if some heap on the table is full
+		cleanUp(&game, players)
+
 		exit := checkIfEnd(&game, players)
 		if exit {
 			return
@@ -97,6 +95,22 @@ func main() {
 
 		game.Turn = (game.Turn + 1) % (numOfPlayers)
 		fmt.Printf("Next turn: player %v\n", game.Turn)
+	}
+}
+
+func cleanUp(gameP *Game, players []Player) {
+	// check if some heap on the table is full
+	for i := 0; i < 4; i++ {
+		if len((*gameP).Table[i]) == 12 {
+			(*gameP).Table[i] = (*gameP).Table[i][:0]
+		}
+	}
+
+	// give new hand cards to player that have less than four
+	for _, player := range players {
+		if len(player.Hand) < 5 {
+			player.Hand = append(player.Hand, getCards(5-len(player.Hand), &(*gameP).cards)...)
+		}
 	}
 }
 
@@ -126,6 +140,7 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 
 	case 2: // Stack -> Table
 		fmt.Println("checkAndExecMove: \t \t case 2")
+		panic("ERROR: function has not been implemented yet")
 		// ...
 	case 3: // Hand -> Storage
 		fmt.Println("checkAndExecMove: \t \t case 3")
@@ -138,10 +153,7 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 }
 
 func checkIfEnd(game *Game, players []Player) bool {
-	if (players[game.Turn]).stack.counter == numOfCards {
-		return true
-	}
-	return false
+	return (players[game.Turn]).stack.counter == numOfCards
 }
 
 func waitForMove(conn net.Conn, moveP *Move) {
