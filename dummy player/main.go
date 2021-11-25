@@ -23,10 +23,9 @@ type Stack struct {
 // }
 
 type Game struct {
-	Table    table
-	Storage  []storage // one storage for each player
-	VisStack []int
-	//	cards        Cards
+	Table        table
+	Storage      []storage // one storage for each player
+	VisStack     []int
 	Turn         int
 	NumOfPlayers int
 	NumOfCards   int
@@ -58,23 +57,25 @@ func MainPlayer() {
 	var game Game
 	var me Player
 	getInfo(connP, &game, &me)
-	fmt.Printf("me: %v, game: %v\n", me, game)
+	fmt.Printf("ID: %v \t \t movNr: -1, me: %v, game: %v\n", me.ID, me, game)
 
 	for movNr := 0; movNr < maxMoves; movNr++ {
 		if game.Turn == me.ID {
 			move := buildMove(&game, &me)
-			fmt.Printf("My move: %v\n", move)
+			fmt.Printf("ID: %v \t \t My move: %v\n", me.ID, move)
 			sendMove(connP, &move)
+			fmt.Printf("ID: %v \t \t My move: %v\n", me.ID, move)
 		}
 
 		getInfo(connP, &game, &me)
-		fmt.Printf("movNr: %v, me: %v, game: %v\n", movNr, me, game)
+		fmt.Printf("ID: %v \t \t movNr: %v, me: %v, game: %v\n", me.ID, movNr, me, game)
 	}
 }
 
 func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 	// wait for input on conn:
 	buffer := make([]byte, 10000)
+	// buffer := make([]byte, 0, 10000)
 
 	// case1 := []byte("{\"Tabl")
 	// case2 := []byte("{\"ID\":")
@@ -85,27 +86,26 @@ func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 			panic(err)
 		}
 
-		// if n == 0 {
-		// 	i = i - 1
-		// 	continue
-		// }
+		if n == 0 {
+			continue
+		}
 		buffer = buffer[:n]
 
 		// the buffer should be non-emtpy now
-		fmt.Printf("Buffer: %s\n", buffer)
+		fmt.Printf("ID: %v \t \t Buffer: %s\n", (*meP).ID, buffer)
 
 		netIn := json.NewDecoder(bytes.NewReader(buffer))
 
 		if buffer[2] == byte(0x54) {
 			err := netIn.Decode(gameP)
-			fmt.Println(*gameP)
+			// fmt.Println(*gameP)
 			if err != nil && err != io.EOF {
 				panic(err)
 			}
 		}
 		if buffer[2] == byte(0x49) {
 			err = netIn.Decode(meP)
-			fmt.Println(*meP)
+			// fmt.Println(*meP)
 			if err != nil && err != io.EOF {
 				panic(err)
 			}

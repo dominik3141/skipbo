@@ -56,12 +56,12 @@ func main() {
 	players := make([]Player, numOfPlayers)
 	for i := 0; i < numOfPlayers; i++ {
 		players[i] = newPlayer(&cards, i)
-		fmt.Printf("player %v: %v\n", i, players[i])
+		fmt.Printf("Created player %v: \t %v\n", i, players[i])
 	}
 
 	// wait for players to connect...
 	fmt.Println("Players created. Now we are waiting for them to connect.")
-	conns := initPlayers()
+	conns := initPlayerConns()
 	fmt.Printf("Connections to players established: %v\n", conns)
 	closeConns := func(conns []net.Conn) {
 		for _, conn := range conns {
@@ -69,6 +69,11 @@ func main() {
 		}
 	}
 	defer closeConns(conns)
+
+	// assign IDs to each connection
+	// for id, conn := range conns {
+	// 	conn.Write{}
+	// }
 
 	// create initial game
 	game := newGame(players, cards)
@@ -91,10 +96,12 @@ func main() {
 		}
 
 		game.Turn = (game.Turn + 1) % (numOfPlayers)
+		fmt.Printf("Next turn: player %v\n", game.Turn)
 	}
 }
 
 func checkAndExecMove(game *Game, players []Player, move Move) {
+	panic("ERROR: This function has not been implemented yet\n")
 	player := players[game.Turn]
 	switch move.KindOfMove {
 	case 1: // Hand -> Table
@@ -121,7 +128,8 @@ func checkIfEnd(game *Game, players []Player) bool {
 }
 
 func waitForMove(conn net.Conn, moveP *Move) {
-	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
+	// buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
+	buffer := make([]byte, 1000) // this buffer could probably be much smaller
 	for {
 		time.Sleep(2 * time.Second)
 		n, err := conn.Read(buffer)
@@ -132,7 +140,7 @@ func waitForMove(conn net.Conn, moveP *Move) {
 		if n != 0 {
 			buffer = buffer[:n]
 
-			fmt.Printf("Buffer: %s\n", buffer)
+			fmt.Printf("waitForMove \t Buffer: \t %s\n", buffer)
 
 			err = json.Unmarshal(buffer, moveP)
 			if err != nil && err != io.EOF {
@@ -208,7 +216,7 @@ func newGame(players []Player, cards Cards) Game {
 	return game
 }
 
-func initPlayers() [](net.Conn) {
+func initPlayerConns() [](net.Conn) {
 	conns := make([](net.Conn), numOfPlayers)
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -236,9 +244,9 @@ func newPlayer(cards *(Cards), id int) Player {
 		counter: 0}
 
 	player := Player{
-		stack: stack,
-		Hand:  hand,
 		ID:    id,
+		Hand:  hand,
+		stack: stack,
 	}
 	return player
 }
