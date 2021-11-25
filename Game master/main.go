@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 )
@@ -22,11 +23,13 @@ type Cards struct {
 }
 
 type Game struct {
-	Table    table
-	Storage  []storage // one storage for each player
-	VisStack []int
-	cards    Cards
-	Turn     int
+	Table        table
+	Storage      []storage // one storage for each player
+	VisStack     []int
+	cards        Cards
+	Turn         int
+	NumOfPlayers int
+	NumOfCards   int
 }
 
 type Player struct {
@@ -36,9 +39,9 @@ type Player struct {
 }
 
 type Move struct {
-	KindOfMove uint // i.e. Hand -> Table
-	Src        uint // i.e. which card from Hand
-	Dst        uint // i.e. which heap to lay down on
+	KindOfMove int // i.e. Hand -> Table
+	Src        int // i.e. which card from Hand
+	Dst        int // i.e. which heap to lay down on
 }
 
 const numOfPlayers = 2
@@ -69,11 +72,13 @@ func main() {
 	game := newGame(players, cards)
 
 	// play
+	var move Move
 	for movNr := 0; movNr < maxMoves; movNr++ {
+		fmt.Printf("game: %v\n", game)
 		sendGame(&game, players, conns)
 
 		fmt.Printf("Waiting for move by player %v\n", game.Turn)
-		move := waitForMove(conns[game.Turn])
+		waitForMove(conns[game.Turn], &move)
 		fmt.Printf("Move by player %v: %v\n", game.Turn, move)
 		checkAndExecMove(&game, players, move)
 
@@ -112,18 +117,30 @@ func checkIfEnd(game *Game, players []Player) bool {
 	return false
 }
 
-func waitForMove(conn net.Conn) Move {
-	var move Move
+func waitForMove(conn net.Conn, moveP *Move) {
 	buffer := make([]byte, 0, 1000) // this buffer could probably be much smaller
-	conn.Read(buffer)
-	json.Unmarshal(buffer, &move)
-	return move
+	n, err := conn.Read(buffer)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+	buffer = buffer[:n]
+
+	err = json.Unmarshal(buffer, moveP)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func sendGame(game *Game, players []Player, conns [numOfPlayers](net.Conn)) {
 	for i, conn := range conns {
-		strGame, _ := json.Marshal(game)
-		strPlayer, _ := json.Marshal(players[i])
+		strGame, err := json.Marshal(game)
+		if err != nil {
+			panic(err)
+		}
+		strPlayer, err := json.Marshal(players[i])
+		if err != nil {
+			panic(err)
+		}
 		conn.Write(strGame)
 		conn.Write(strPlayer)
 	}
@@ -131,6 +148,9 @@ func sendGame(game *Game, players []Player, conns [numOfPlayers](net.Conn)) {
 
 func newGame(players []Player, cards Cards) Game {
 	var game Game
+
+	game.NumOfPlayers = numOfPlayers
+	game.NumOfCards = numOfCards
 
 	game.cards = cards
 
