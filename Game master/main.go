@@ -101,12 +101,10 @@ func main() {
 
 func nextTurn(turn int, kindOfMove int, players []Player) int {
 	// determine which player is supposed to make the next move.
-	// this is either just the next player, or the player who submitted the current move if he has no cards left on his hand (and his last move was of kind 'Hand -> Table')
-	if len(players[turn].Hand) == 0 && kindOfMove == 3 {
-		return turn
+	if kindOfMove == 1 {
+		return (turn + 1) % (numOfPlayers)
 	}
-	return (turn + 1) % (numOfPlayers)
-
+	return turn
 }
 
 func cleanUp(gameP *Game, players []Player) {
