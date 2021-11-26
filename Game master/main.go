@@ -102,7 +102,7 @@ func main() {
 
 func nextTurn(turn int, kindOfMove int, players []Player) int {
 	// determine which player is supposed to make the next move.
-	if kindOfMove == 1 {
+	if kindOfMove == 3 {
 		return (turn + 1) % (numOfPlayers)
 	}
 	return turn
