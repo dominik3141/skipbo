@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 type table = [4]([]int)
@@ -75,29 +76,31 @@ func MainPlayer() {
 	}
 }
 
-func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
-	decodeInfo := func(netIn *json.Decoder) {
-		buffer := make([]byte, 3)
-		netIn.Buffered().Read(buffer)
-		switch buffer[2] {
-		case byte(0x54):
-			err := netIn.Decode(gameP)
-			if err != nil && err != io.EOF {
-				panic(err)
-			}
-		case byte(0x49):
-			err := netIn.Decode(meP)
-			if err != nil && err != io.EOF {
-				panic(err)
-			}
+func decodeInfo(netIn *json.Decoder, gameP *Game, meP *Player) {
+	smallBuffer := make([]byte, 3)
+	netIn.Buffered().Read(smallBuffer)
+	switch smallBuffer[2] {
+	case byte(0x54):
+		err := netIn.Decode(gameP)
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
+	case byte(0x49):
+		err := netIn.Decode(meP)
+		if err != nil && err != io.EOF {
+			panic(err)
 		}
 	}
+}
 
+func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 	// wait for input on conn:
 	buffer := make([]byte, 10000)
 
 	for {
+		time.Sleep(2 * time.Second)
 		n, err := (*connP).Read(buffer)
+		fmt.Printf("ID: %v \t \t n=%v\n", (*meP).ID, n)
 		if err != nil && err != io.EOF {
 			panic(err)
 		}
@@ -107,14 +110,13 @@ func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 		}
 
 		// the buffer should be non-emtpy now
-		// fmt.Printf("ID: %v \t \t Buffer: %s\n", (*meP).ID, bufferFilled)
 
 		netIn := json.NewDecoder(bytes.NewReader(buffer[:n]))
-		decodeInfo(netIn)
+		decodeInfo(netIn, gameP, meP)
 
 		switch netIn.More() {
 		case true:
-			decodeInfo(netIn)
+			decodeInfo(netIn, gameP, meP)
 			return
 		case false:
 			continue
