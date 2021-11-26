@@ -85,10 +85,11 @@ func main() {
 		fmt.Printf("Move nr %v by player %v: %v\n", movNr, game.Turn, move)
 		checkAndExecMove(&game, players, move)
 
+		prevTurn := game.Turn
 		game.Turn = nextTurn(game.Turn, move.KindOfMove, players)
 
 		// refill hand cards and check if some heap on the table is full
-		cleanUp(&game, players)
+		cleanUp(&game, players, prevTurn)
 
 		exit := checkIfEnd(&game, players)
 		if exit {
@@ -107,7 +108,7 @@ func nextTurn(turn int, kindOfMove int, players []Player) int {
 	return turn
 }
 
-func cleanUp(gameP *Game, players []Player) {
+func cleanUp(gameP *Game, players []Player, prevTurn int) {
 	// check if some heap on the table is full
 	for i := 0; i < 4; i++ {
 		if len((*gameP).Table[i]) == 12 {
@@ -115,12 +116,20 @@ func cleanUp(gameP *Game, players []Player) {
 		}
 	}
 
-	// give new hand cards to player that have less than four
-	for _, player := range players {
-		if len(player.Hand) == 0 {
-			fmt.Printf("ID: %v \t CleanUp: \t Old Hand: %v\n", player.ID, player.Hand)
-			player.Hand = append(player.Hand, getCards(5-len(player.Hand), &(*gameP).cards)...)
-			fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", player.ID, player.Hand)
+	// give new hand cards to players who just ended their turn
+	if (*gameP).Turn != prevTurn {
+		player := players[prevTurn]
+		fmt.Printf("ID: %v \t CleanUp: \t Old Hand: %v\n", player.ID, player.Hand)
+		players[prevTurn].Hand = append(players[prevTurn].Hand, getCards(5-len(players[prevTurn].Hand), &(*gameP).cards)...)
+		fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", player.ID, player.Hand)
+	}
+
+	// give new hand cards to players that have no cards left on their hand
+	for id, _ := range players {
+		if len(players[id].Hand) == 0 {
+			fmt.Printf("ID: %v \t CleanUp: \t Old Hand: %v\n", players[id].ID, players[id].Hand)
+			players[id].Hand = append(players[id].Hand, getCards(5-len(players[id].Hand), &(*gameP).cards)...)
+			fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", players[id].ID, players[id].Hand)
 		}
 	}
 }
