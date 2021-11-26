@@ -85,6 +85,8 @@ func main() {
 		fmt.Printf("Move nr %v by player %v: %v\n", movNr, game.Turn, move)
 		checkAndExecMove(&game, players, move)
 
+		game.Turn = nextTurn(game.Turn, move.KindOfMove, players)
+
 		// refill hand cards and check if some heap on the table is full
 		cleanUp(&game, players)
 
@@ -93,9 +95,18 @@ func main() {
 			return
 		}
 
-		game.Turn = (game.Turn + 1) % (numOfPlayers)
 		fmt.Printf("Next turn: player %v\n", game.Turn)
 	}
+}
+
+func nextTurn(turn int, kindOfMove int, players []Player) int {
+	// determine which player is supposed to make the next move.
+	// this is either just the next player, or the player who submitted the current move if he has no cards left on his hand (and his last move was of kind 'Hand -> Table')
+	if len(players[turn].Hand) == 0 && kindOfMove == 3 {
+		return turn
+	}
+	return (turn + 1) % (numOfPlayers)
+
 }
 
 func cleanUp(gameP *Game, players []Player) {
@@ -108,21 +119,24 @@ func cleanUp(gameP *Game, players []Player) {
 
 	// give new hand cards to player that have less than four
 	for _, player := range players {
-		if len(player.Hand) < 5 {
+		if len(player.Hand) == 0 {
+			fmt.Printf("ID: %v \t CleanUp: \t Old Hand: %v\n", player.ID, player.Hand)
 			player.Hand = append(player.Hand, getCards(5-len(player.Hand), &(*gameP).cards)...)
+			fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", player.ID, player.Hand)
 		}
 	}
 }
 
 func checkAndExecMove(gameP *Game, players []Player, move Move) {
 	deleteFromHand := func(playerP *Player, ind int) {
+		// delete the card specified by its index 'ind' from 'playerP's hand and reindex accordingly
+		cardsOnHand := len((*playerP).Hand)
 		for i := move.Src; i < 5; i++ {
-			cardsOnHand := len((*playerP).Hand)
 			if i+1 < cardsOnHand {
 				(*playerP).Hand[i] = (*playerP).Hand[i+1]
 			}
-			(*playerP).Hand = (*playerP).Hand[:cardsOnHand-1]
 		}
+		(*playerP).Hand = (*playerP).Hand[:cardsOnHand-1]
 	}
 	playerP := &(players[(*gameP).Turn])
 	switch move.KindOfMove {
@@ -144,11 +158,13 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 		// ...
 	case 3: // Hand -> Storage
 		fmt.Println("checkAndExecMove: \t \t case 3")
+		fmt.Printf("ID: %v \t checkAndExecMove: \t Old Hand: %v\n", (*playerP).ID, (*playerP).Hand)
 		storageDstP := &((*gameP).Storage[(*playerP).ID][move.Dst])
 		HandSrcP := &((*playerP).Hand[move.Src])
 		*storageDstP = append(*storageDstP, *HandSrcP)
 
 		deleteFromHand(playerP, move.Src)
+		fmt.Printf("ID: %v \t checkAndExecMove: \t New Hand: %v\n", (*playerP).ID, (*playerP).Hand)
 	}
 }
 
@@ -160,8 +176,9 @@ func waitForMove(conn net.Conn, moveP *Move) {
 	buffer := make([]byte, 1000) // this buffer could probably be much smaller
 	for {
 		time.Sleep(2 * time.Second)
+
 		n, err := conn.Read(buffer)
-		fmt.Println(n, err)
+		// fmt.Println(n, err)
 		if err != nil && err != io.EOF {
 			panic(err)
 		}
@@ -170,6 +187,7 @@ func waitForMove(conn net.Conn, moveP *Move) {
 
 			fmt.Printf("waitForMove \t Buffer: \t %s\n", buffer)
 
+			// can not handle more than one move in a single buffer
 			err = json.Unmarshal(buffer, moveP)
 			if err != nil && err != io.EOF {
 				panic(err)

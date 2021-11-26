@@ -51,34 +51,50 @@ func main() {
 }
 
 func MainPlayer() {
+	// establish connection to game master
 	connP := getConn()
 	fmt.Printf("Connection to game master established: %v\n", *connP)
 	defer (*connP).Close()
+
+	// get infos
 	var game Game
 	var me Player
 	getInfo(connP, &game, &me)
-	fmt.Printf("ID: %v \t \t movNr: -1, me: %v, game: %v\n", me.ID, me, game)
+	fmt.Printf("ID: %v \t STATUS: \t  movNr: 0, me: %v, game: %v\n", me.ID, me, game)
 
-	for movNr := 0; movNr < maxMoves; movNr++ {
+	for movNr := 1; movNr < maxMoves+1; movNr++ {
 		if game.Turn == me.ID {
 			move := buildMove(&game, &me)
 			fmt.Printf("ID: %v \t \t My move: %v\n", me.ID, move)
 			sendMove(connP, &move)
-			fmt.Printf("ID: %v \t \t My move: %v\n", me.ID, move)
+			fmt.Printf("ID: %v \t \t Done sending move.\n", me.ID)
 		}
 
-		getInfo(connP, &game, &me)
-		fmt.Printf("ID: %v \t \t movNr: %v, me: %v, game: %v\n", me.ID, movNr, me, game)
+		getInfo(connP, &game, &me) // this function should also block further execution until some player has send his move to the game master
+		fmt.Printf("ID: %v \t STATUS: \t  movNr: %v, me: %v, game: %v\n", me.ID, movNr, me, game)
 	}
 }
 
 func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
+	decodeInfo := func(netIn *json.Decoder) {
+		buffer := make([]byte, 3)
+		netIn.Buffered().Read(buffer)
+		switch buffer[2] {
+		case byte(0x54):
+			err := netIn.Decode(gameP)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+		case byte(0x49):
+			err := netIn.Decode(meP)
+			if err != nil && err != io.EOF {
+				panic(err)
+			}
+		}
+	}
+
 	// wait for input on conn:
 	buffer := make([]byte, 10000)
-	// buffer := make([]byte, 0, 10000)
-
-	// case1 := []byte("{\"Tabl")
-	// case2 := []byte("{\"ID\":")
 
 	for {
 		n, err := (*connP).Read(buffer)
@@ -89,33 +105,22 @@ func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
 		if n == 0 {
 			continue
 		}
-		buffer = buffer[:n]
 
 		// the buffer should be non-emtpy now
-		fmt.Printf("ID: %v \t \t Buffer: %s\n", (*meP).ID, buffer)
+		// fmt.Printf("ID: %v \t \t Buffer: %s\n", (*meP).ID, bufferFilled)
 
-		netIn := json.NewDecoder(bytes.NewReader(buffer))
+		netIn := json.NewDecoder(bytes.NewReader(buffer[:n]))
+		decodeInfo(netIn)
 
-		if buffer[2] == byte(0x54) {
-			err := netIn.Decode(gameP)
-			// fmt.Println(*gameP)
-			if err != nil && err != io.EOF {
-				panic(err)
-			}
-		}
-		if buffer[2] == byte(0x49) {
-			err = netIn.Decode(meP)
-			// fmt.Println(*meP)
-			if err != nil && err != io.EOF {
-				panic(err)
-			}
-		}
-
-		if !netIn.More() {
+		switch netIn.More() {
+		case true:
+			decodeInfo(netIn)
 			return
+		case false:
+			continue
+
 		}
 	}
-
 }
 
 func buildMove(gameP *Game, meP *Player) Move {
