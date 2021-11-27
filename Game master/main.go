@@ -121,7 +121,7 @@ func cleanUp(gameP *Game, players []Player, prevTurn int) {
 		player := players[prevTurn]
 		fmt.Printf("ID: %v \t CleanUp: \t Old Hand: %v\n", player.ID, player.Hand)
 		players[prevTurn].Hand = append(players[prevTurn].Hand, getCards(5-len(players[prevTurn].Hand), &(*gameP).cards)...)
-		fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", player.ID, player.Hand)
+		fmt.Printf("ID: %v \t CleanUp: \t New Hand: %v\n", player.ID, players[prevTurn].Hand)
 	}
 
 	// give new hand cards to players that have no cards left on their hand
@@ -146,33 +146,61 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 		(*playerP).Hand = (*playerP).Hand[:cardsOnHand-1]
 	}
 	playerP := &(players[(*gameP).Turn])
+	playerID := (*gameP).Turn
 	switch move.KindOfMove {
 	case 1: // Hand -> Table
 		fmt.Println("checkAndExecMove: \t \t case 1")
 
-		// append card to table heap
-		heapDst := &((*gameP).Table[move.Dst])
-		heapSrcVal := (*playerP).Hand[move.Src]
-		(*heapDst)[len(*heapDst)] = heapSrcVal
-		*heapDst = append(*heapDst, heapSrcVal)
+		// get variables we need
+		tableHeapP := &((*gameP).Table[move.Dst])
+		handCard := (*playerP).Hand[move.Src]
+
+		// lay down card to table if this is a legit move
+		if legit(*tableHeapP, handCard) {
+			(*tableHeapP)[len(*tableHeapP)] = handCard
+			*tableHeapP = append(*tableHeapP, handCard)
+			fmt.Printf("Move %v by %v is legitimate.\n", move, playerID)
+		} else {
+			panic("ERROR: Illegitimate move!")
+		}
 
 		// delete card from hand
 		deleteFromHand(playerP, move.Src)
 
 	case 2: // Stack -> Table
 		fmt.Println("checkAndExecMove: \t \t case 2")
-		panic("ERROR: function has not been implemented yet")
-		// ...
+
+		// get visible stack card from stack and increase counter
+		card := players[playerID].stack.cards[players[playerID].stack.counter]
+		players[playerID].stack.counter += 1
+
+		// lay down card to table if this is a legit move
+		if legit((*gameP).Table[move.Dst], card) {
+			(*gameP).Table[move.Dst] = append((*gameP).Table[move.Dst], card)
+			fmt.Printf("Move %v by %v is legitimate.\n", move, playerID)
+		} else {
+			panic("ERROR: Illegitimate move!")
+		}
+
+		// update visible stack card
+		(*gameP).VisStack[playerID] = players[playerID].stack.cards[players[playerID].stack.counter]
+
 	case 3: // Hand -> Storage
+		// this move is always legitimate
 		fmt.Println("checkAndExecMove: \t \t case 3")
-		fmt.Printf("ID: %v \t checkAndExecMove: \t Old Hand: %v\n", (*playerP).ID, (*playerP).Hand)
-		storageDstP := &((*gameP).Storage[(*playerP).ID][move.Dst])
+		fmt.Printf("ID: %v \t checkAndExecMove: \t Old Hand: %v\n", playerID, (*playerP).Hand)
+		storageDstP := &((*gameP).Storage[playerID][move.Dst])
 		HandSrcP := &((*playerP).Hand[move.Src])
 		*storageDstP = append(*storageDstP, *HandSrcP)
 
 		deleteFromHand(playerP, move.Src)
-		fmt.Printf("ID: %v \t checkAndExecMove: \t New Hand: %v\n", (*playerP).ID, (*playerP).Hand)
+		fmt.Printf("ID: %v \t checkAndExecMove: \t New Hand: %v\n", playerID, (*playerP).Hand)
 	}
+}
+
+func legit(a []int, b int) bool {
+	// check if it is legitimate to append b to a
+	return a[len(a)] == b-1 || b == 13
 }
 
 func checkIfEnd(game *Game, players []Player) bool {
