@@ -72,29 +72,53 @@ func MainPlayer() {
 	}
 }
 
+func legit(a []int, b int) bool {
+	// check if it is legitimate (within the rules of skipbo) to append b to a
+	return a[len(a)] == b-1 || b == 13
+}
+
+func checkAllHeaps(heaps [4][]int, card int) (bool, int) {
+	// checks whether it is possible to append 'card' to any heap inside of 'heaps'
+	// if this is possible, return true and the index of the correct heap
+	for ind, heap := range heaps {
+		if legit(heap, card) {
+			return true, ind
+		}
+	}
+	return false, 0
+}
+
 func buildMove(gameP *Game, meP *Player) Move {
 	// this function is the core of the dummy players strategy
 
-	checkStack := func() (bool, int) {
-		// check whether it is possible to lay down the visible stack card to some heap on the table
-		// if it is possible, return the index of the correct table heap
-		heads := heads((*gameP).Table)
-		for i := 0; i < 4; i++ {
-			if heads[i] == (*gameP).VisStack[(*meP).ID] {
-				return true, i
-			}
-		}
-		return false, 0
-	}
-
 	var move Move
-	csBool, ind := checkStack()
-	if csBool {
+	myId := (*meP).ID
+	visStackCard := (*gameP).VisStack[myId]
+	handCards := (*meP).Hand
+
+	// check if it is possible to lay down the visible stack card to the table
+	// if yes -> lay down and return move
+	poss, ind := checkAllHeaps((*gameP).Table, visStackCard)
+	if poss {
 		move.KindOfMove = 2
 		move.Src = 0
 		move.Dst = ind
 		return move
 	}
+
+	// check if it is possible to lay down some hand card to the table
+	// if yes -> lay down and return move
+	for indHand, hCard := range handCards {
+		poss, indTable := checkAllHeaps((*gameP).Table, hCard)
+		if poss {
+			move.KindOfMove = 1
+			move.Src = indHand
+			move.Dst = indTable
+			return move
+		}
+	}
+
+	// if nothing else is possible, just lay down a hand card to the storage
 	move.KindOfMove = 3
 	move.Src = 0
 	move.Dst = 0
