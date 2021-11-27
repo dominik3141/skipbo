@@ -167,11 +167,11 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 
 		// lay down card to table if this is a legit move
 		if legit(*tableHeapP, handCard) {
-			(*tableHeapP)[len(*tableHeapP)] = handCard
+			// (*tableHeapP)[len(*tableHeapP)] = handCard
 			*tableHeapP = append(*tableHeapP, handCard)
 			fmt.Printf("Move %v by %v is legitimate.\n", move, playerID)
 		} else {
-			panic("ERROR: Illegitimate move!")
+			panic("ERROR: illegal move!")
 		}
 
 		// delete card from hand
@@ -210,7 +210,13 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 
 func legit(a []int, b int) bool {
 	// check if it is legitimate (within the rules of skipbo) to append b to a
-	return a[len(a)] == b-1 || b == 13
+	if b == 13 {
+		return true
+	}
+	if len(a) == 0 {
+		return b == 1
+	}
+	return a[len(a)-1] == b-1
 }
 
 func checkIfEnd(game *Game, players []Player) bool {

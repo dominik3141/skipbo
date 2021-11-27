@@ -74,7 +74,13 @@ func MainPlayer() {
 
 func legit(a []int, b int) bool {
 	// check if it is legitimate (within the rules of skipbo) to append b to a
-	return a[len(a)] == b-1 || b == 13
+	if b == 13 {
+		return true
+	}
+	if len(a) == 0 {
+		return b == 1
+	}
+	return a[len(a)-1] == b-1
 }
 
 func checkAllHeaps(heaps [4][]int, card int) (bool, int) {
