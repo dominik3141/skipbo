@@ -40,6 +40,8 @@ type Move struct {
 const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
+	// spawns two players
+
 	go MainPlayer()
 	MainPlayer()
 }
@@ -56,6 +58,7 @@ func MainPlayer() {
 	getInfo(connP, &game, &me)
 	fmt.Printf("ID: %v \t STATUS: \t  movNr: 0, me: %v, game: %v\n", me.ID, me, game)
 
+	// get new infos after every move and submit own move if it is my turn
 	for movNr := 1; movNr < maxMoves+1; movNr++ {
 		if game.Turn == me.ID {
 			move := buildMove(&game, &me)
@@ -69,22 +72,12 @@ func MainPlayer() {
 	}
 }
 
-func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
-	netIn := json.NewDecoder(*connP)
-
-	err := netIn.Decode(gameP)
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-
-	err = netIn.Decode(meP)
-	if err != nil && err != io.EOF {
-		panic(err)
-	}
-}
-
 func buildMove(gameP *Game, meP *Player) Move {
+	// this function is the core of the dummy players strategy
+
 	checkStack := func() (bool, int) {
+		// check whether it is possible to lay down the visible stack card to some heap on the table
+		// if it is possible, return the index of the correct table heap
 		heads := heads((*gameP).Table)
 		for i := 0; i < 4; i++ {
 			if heads[i] == (*gameP).VisStack[(*meP).ID] {
@@ -108,6 +101,20 @@ func buildMove(gameP *Game, meP *Player) Move {
 	return move
 }
 
+func getInfo(connP *net.Conn, gameP *Game, meP *Player) {
+	netIn := json.NewDecoder(*connP)
+
+	err := netIn.Decode(gameP)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+
+	err = netIn.Decode(meP)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+}
+
 func getConn() *net.Conn {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
@@ -129,7 +136,12 @@ func sendMove(connP *net.Conn, moveP *Move) {
 	fmt.Printf("Wrote %v bytes to connection: %s\n", n, bMove)
 }
 
+//
+// helper functions
+//
+
 func heads(heaps [4]([]int)) []int {
+	// given an array of four int slices, this function returns a slice containing all four first elements (or zero if heap is empty) from these slices
 	heads := make([]int, 4)
 	for i := 0; i < 4; i++ {
 		if len(heaps[i]) == 0 {

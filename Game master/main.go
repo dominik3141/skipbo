@@ -50,7 +50,7 @@ const numOfCards = 20
 const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
-	// initialize the game
+	// create new cards and create 'numOfPlayers' players
 	cards := NewCards()
 	fmt.Printf("cards: %v\n", cards)
 	players := make([]Player, numOfPlayers)
@@ -63,6 +63,8 @@ func main() {
 	fmt.Println("Players created. Now we are waiting for them to connect.")
 	conns := initPlayerConns()
 	fmt.Printf("Connections to players established: %v\n", conns)
+
+	// make sure the connection get closed after the game has ended
 	closeConns := func(conns []net.Conn) {
 		for _, conn := range conns {
 			conn.Close()
@@ -76,21 +78,29 @@ func main() {
 	// play
 	var move Move
 	for movNr := 0; movNr < maxMoves; movNr++ {
+		// send game and player infos to all players
 		fmt.Printf("game: %v\n", game)
 		sendGameAndPlayers(&game, players, conns)
 		fmt.Printf("Done sending game and players info to players\n")
 
+		// wait for move of player with id game.Turn
 		fmt.Printf("Waiting for move by player %v\n", game.Turn)
 		waitForMove(conns[game.Turn], &move)
 		fmt.Printf("Move nr %v by player %v: %v\n", movNr, game.Turn, move)
+
+		// check and exec move (panics if move is illegal)
 		checkAndExecMove(&game, players, move)
 
+		// make everything ready for next move/iteration:
+
+		//		determine who has the turn
 		prevTurn := game.Turn
 		game.Turn = nextTurn(game.Turn, move.KindOfMove, players)
 
-		// refill hand cards and check if some heap on the table is full
+		// 		refill hand cards if player has ended turn and check if some heap on the table is full
 		cleanUp(&game, players, prevTurn)
 
+		// 		check if someone has already won the game
 		exit := checkIfEnd(&game, players)
 		if exit {
 			return
@@ -199,15 +209,19 @@ func checkAndExecMove(gameP *Game, players []Player, move Move) {
 }
 
 func legit(a []int, b int) bool {
-	// check if it is legitimate to append b to a
+	// check if it is legitimate (within the rules of skipbo) to append b to a
 	return a[len(a)] == b-1 || b == 13
 }
 
 func checkIfEnd(game *Game, players []Player) bool {
+	// check if someone has already won the game
 	return (players[game.Turn]).stack.counter == numOfCards
 }
 
 func waitForMove(conn net.Conn, moveP *Move) {
+	// waits till the player connected trough 'conn' submits his move
+	// the function that saves this move to the Move struct pointed to by 'moveP'
+
 	buffer := make([]byte, 1000) // this buffer could probably be much smaller
 	for {
 		time.Sleep(2 * time.Second)
@@ -235,6 +249,8 @@ func waitForMove(conn net.Conn, moveP *Move) {
 }
 
 func sendGameAndPlayers(game *Game, players []Player, conns [](net.Conn)) {
+	// sends the game (or at leat all 'public' fields of the game) to each player
+	// and send every player his own player variable
 	for i, conn := range conns {
 		strGame, err := json.Marshal(game)
 		if err != nil {
@@ -251,6 +267,8 @@ func sendGameAndPlayers(game *Game, players []Player, conns [](net.Conn)) {
 }
 
 func newGame(players []Player, cards Cards) Game {
+	// given a slice of players and (the value of) a cards struct, this function returns a game with proper:
+	// turn, visStack, cards, numOfPlayers, numOfCards
 	var game Game
 
 	game.NumOfPlayers = numOfPlayers
@@ -298,6 +316,7 @@ func newGame(players []Player, cards Cards) Game {
 }
 
 func initPlayerConns() [](net.Conn) {
+	// create a connection with each player and return a slice containing the connections
 	conns := make([](net.Conn), numOfPlayers)
 	ln, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -320,6 +339,7 @@ func initPlayerConns() [](net.Conn) {
 //
 
 func newPlayer(cards *(Cards), id int) Player {
+	// creates a new player with ID='id' and assignes hand- and stack cards to the player
 	hand := getCards(5, cards)
 	stack := Stack{cards: getCards(numOfCards, cards),
 		counter: 0}
@@ -333,6 +353,7 @@ func newPlayer(cards *(Cards), id int) Player {
 }
 
 func getCards(num int, cardsP *(Cards)) []int {
+	// given an integer 'num' and a pointer to a Cards struct, this function returns the first num cards from the Cards and increases its counter by num
 	ret := make([]int, num)
 	for i := 0; i < num; i++ {
 		ret[i] = (*cardsP).cards[(*cardsP).counter+i]
@@ -342,6 +363,9 @@ func getCards(num int, cardsP *(Cards)) []int {
 }
 
 func NewCards() Cards {
+	// returns a Cards struct containing:
+	//	cards.cards: 	a slice of integers containing all skipbo cards
+	// 	cards.counter: 	a counter initialized to zero
 	constAppend := func(c int, n int, slice []int) []int {
 		for i := 0; i < n; i++ {
 			slice = append(slice, c)
