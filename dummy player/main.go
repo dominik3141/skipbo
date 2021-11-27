@@ -16,11 +16,6 @@ type Stack struct {
 	counter int
 }
 
-// type Cards struct {
-// 	cards   []int
-// 	counter int
-// }
-
 type Game struct {
 	Table        table
 	Storage      []storage // one storage for each player
@@ -113,35 +108,6 @@ func buildMove(gameP *Game, meP *Player) Move {
 	return move
 }
 
-// func getGameInfo(connP *net.Conn, gameP *Game) {
-// 	buffer := make([]byte, 1000)
-// 	n, err := (*connP).Read(buffer)
-// 	if err != nil && err != io.EOF {
-// 		panic(err)
-// 	}
-// 	buffer = buffer[:n]
-
-// 	err = json.Unmarshal(buffer, gameP)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
-
-// func getPrivateInfo(connP *net.Conn, me *Player) {
-// 	buffer := make([]byte, 1000)
-// 	n, err := (*connP).Read(buffer)
-// 	if err != nil && err != io.EOF {
-// 		panic(err)
-// 	}
-// 	buffer = buffer[:n]
-
-// 	fmt.Println(buffer)
-// 	err = json.Unmarshal(buffer, me)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
-
 func getConn() *net.Conn {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
@@ -162,36 +128,6 @@ func sendMove(connP *net.Conn, moveP *Move) {
 	}
 	fmt.Printf("Wrote %v bytes to connection: %s\n", n, bMove)
 }
-
-// func checkAndExecMove(game *Game, players []Player, move Move) {
-// 	player := players[game.Turn]
-// 	switch move.KindOfMove {
-// 	case 1: // Hand -> Table
-// 		heapDst := game.Table[move.Dst]
-// 		heapSrc := player.Hand[move.Src]
-// 		heapDst[len(heapDst)] = heapSrc
-// 		// player.Hand
-// 		// ...
-// 		fmt.Println("case 1")
-// 	case 2: // Stack -> Table
-// 		// ...
-// 		fmt.Println("case 2")
-// 	case 3: // Hand -> Storage
-// 		// ...
-// 		fmt.Println("case 3")
-// 	}
-// }
-
-// func checkIfEnd(game *Game, players []Player) bool {
-// 	if (players[game.Turn]).stack.counter == numOfCards {
-// 		return true
-// 	}
-// 	return false
-// }
-
-//
-// helper functions:
-//
 
 func heads(heaps [4]([]int)) []int {
 	heads := make([]int, 4)
