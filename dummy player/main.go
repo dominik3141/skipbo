@@ -37,7 +37,7 @@ type Move struct {
 	Dst        int // i.e. which heap to lay down on
 }
 
-const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
+const maxMoves = 1000 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
 	// spawns two players
@@ -79,6 +79,9 @@ func legit(a []int, b int) bool {
 	}
 	if len(a) == 0 {
 		return b == 1
+	}
+	if a[len(a)-1] == 13 {
+		return legit(a[:len(a)-1], b-1)
 	}
 	return a[len(a)-1] == b-1
 }

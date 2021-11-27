@@ -6,7 +6,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"time"
 )
 
 type table = [4]([]int)
@@ -47,7 +46,7 @@ type Move struct {
 
 const numOfPlayers = 2
 const numOfCards = 20
-const maxMoves = 100 // not supposed to be a real constrained but to prevent an infinite loop
+const maxMoves = 1000 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
 	// create new cards and create 'numOfPlayers' players
@@ -91,6 +90,13 @@ func main() {
 		// check and exec move (panics if move is illegal)
 		checkAndExecMove(&game, players, move)
 
+		//	check if someone has already won the game
+		exit := checkIfEnd(game.Turn, players)
+		if exit {
+			fmt.Printf("Player %v has won the game!\n", game.Turn)
+			return
+		}
+
 		// make everything ready for next move/iteration:
 
 		//		determine who has the turn
@@ -99,12 +105,6 @@ func main() {
 
 		// 		refill hand cards if player has ended turn and check if some heap on the table is full
 		cleanUp(&game, players, prevTurn)
-
-		// 		check if someone has already won the game
-		exit := checkIfEnd(&game, players)
-		if exit {
-			return
-		}
 
 		fmt.Printf("Next turn: player %v\n", game.Turn)
 	}
@@ -216,12 +216,15 @@ func legit(a []int, b int) bool {
 	if len(a) == 0 {
 		return b == 1
 	}
+	if a[len(a)-1] == 13 {
+		return legit(a[:len(a)-1], b-1)
+	}
 	return a[len(a)-1] == b-1
 }
 
-func checkIfEnd(game *Game, players []Player) bool {
+func checkIfEnd(playerId int, players []Player) bool {
 	// check if someone has already won the game
-	return (players[game.Turn]).stack.counter == numOfCards
+	return (players[playerId]).stack.counter == numOfCards-1
 }
 
 func waitForMove(conn net.Conn, moveP *Move) {
@@ -230,7 +233,7 @@ func waitForMove(conn net.Conn, moveP *Move) {
 
 	buffer := make([]byte, 1000) // this buffer could probably be much smaller
 	for {
-		time.Sleep(2 * time.Second)
+		// time.Sleep(1 * time.Second)
 
 		n, err := conn.Read(buffer)
 		// fmt.Println(n, err)
@@ -360,6 +363,9 @@ func newPlayer(cards *(Cards), id int) Player {
 
 func getCards(num int, cardsP *(Cards)) []int {
 	// given an integer 'num' and a pointer to a Cards struct, this function returns the first num cards from the Cards and increases its counter by num
+	if (*cardsP).counter > 160 {
+		*cardsP = NewCards()
+	}
 	ret := make([]int, num)
 	for i := 0; i < num; i++ {
 		ret[i] = (*cardsP).cards[(*cardsP).counter+i]
