@@ -37,7 +37,7 @@ type Move struct {
 	Dst        int // i.e. which heap to lay down on
 }
 
-const maxMoves = 1000 // not supposed to be a real constrained but to prevent an infinite loop
+const maxMoves = 100000 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
 	// spawns two players

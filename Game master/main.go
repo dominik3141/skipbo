@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
+	"os"
+	"time"
 )
 
 type table = [4]([]int)
@@ -49,6 +52,20 @@ const numOfCards = 20
 const maxMoves = 1000 // not supposed to be a real constrained but to prevent an infinite loop
 
 func main() {
+	// wait for players to connect...
+	fmt.Println("Players created. Now we are waiting for them to connect.")
+	conns := initPlayerConns()
+	fmt.Printf("Connections to players established: %v\n", conns)
+
+	var winnCounter [numOfPlayers]int
+	logFile, err := os.Create("game.log")
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	logW := bufio.NewWriter(logFile)
+
+gameInit:
 	// create new cards and create 'numOfPlayers' players
 	cards := NewCards()
 	fmt.Printf("cards: %v\n", cards)
@@ -57,11 +74,6 @@ func main() {
 		players[i] = newPlayer(&cards, i)
 		fmt.Printf("Created player %v: \t %v\n", i, players[i])
 	}
-
-	// wait for players to connect...
-	fmt.Println("Players created. Now we are waiting for them to connect.")
-	conns := initPlayerConns()
-	fmt.Printf("Connections to players established: %v\n", conns)
 
 	// make sure the connection get closed after the game has ended
 	closeConns := func(conns []net.Conn) {
@@ -94,7 +106,11 @@ func main() {
 		exit := checkIfEnd(game.Turn, players)
 		if exit {
 			fmt.Printf("Player %v has won the game!\n", game.Turn)
-			return
+			winnCounter[game.Turn] += 1
+			fmt.Printf("winnCounter: %v\n", winnCounter)
+			fmt.Fprintf(logW, "winnCounter: %v, \t moveNr: %v\n", winnCounter, movNr)
+			logW.Flush()
+			goto gameInit
 		}
 
 		// make everything ready for next move/iteration:
@@ -363,7 +379,7 @@ func newPlayer(cards *(Cards), id int) Player {
 
 func getCards(num int, cardsP *(Cards)) []int {
 	// given an integer 'num' and a pointer to a Cards struct, this function returns the first num cards from the Cards and increases its counter by num
-	if (*cardsP).counter > 160 {
+	if (*cardsP).counter > 155 {
 		*cardsP = NewCards()
 	}
 	ret := make([]int, num)
@@ -397,9 +413,9 @@ func NewCards() Cards {
 	cards := newSkipboSorted()
 	var rCards Cards
 	rCards.cards = make([]int, 162)
-	rand.Seed(2606) // not a correct random seed yet!
-	for i := 0; i < 162; i++ {
-		k := rand.Intn(162)
+	rand.Seed(time.Now().UnixNano()) // not a correct random seed yet!
+	for i := 0; i < 161; i++ {
+		k := rand.Intn(161)
 		if cards[k] != 0 {
 			rCards.cards[i] = cards[k]
 			cards[k] = 0
